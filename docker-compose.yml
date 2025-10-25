@@ -8,12 +8,11 @@ services:
       dockerfile: Dockerfile
     container_name: orders-ms
     environment:
-      # URL interna en la red de Docker (puerto expuesto por payments dentro del contenedor)
       PAYMENTS_URL: http://payments-ms:3000
     depends_on:
       - payments-ms
     ports:
-      - "3002:3000"   # host:container (antes 3000:3000)
+      - "3002:3000"   # host:container (evita choque con 3000)
     networks:
       - backend
 
@@ -22,14 +21,8 @@ services:
       context: https://github.com/llipiterdev/payments-ms.git#main
       dockerfile: Dockerfile
     container_name: payments-ms
-    # healthcheck opcional si tu imagen trae curl o wget
-    # healthcheck:
-    #   test: ["CMD-SHELL", "curl -fsS http://localhost:3000/health || wget -qO- http://localhost:3000/health"]
-    #   interval: 10s
-    #   timeout: 3s
-    #   retries: 10
     ports:
-      - "3001:3000"   # host:container
+      - "3001:3000"
     networks:
       - backend
 
@@ -38,35 +31,36 @@ services:
     build:
       context: https://github.com/llipiterdev/orders-ms.git#main
       dockerfile: Dockerfile
-      # Si tienes un stage con dev-deps, puedes usar:
-      # target: builder
+      target: builder                # usa el stage con dev-deps y fuente
     profiles: ["test"]
     networks: [backend]
     depends_on:
       - payments-ms
     environment:
       PAYMENTS_URL: http://payments-ms:3000
-    # Anula entrypoint de la imagen (evita que ejecute "node dist/main")
-    entrypoint: ["/bin/sh","-lc"]
+    working_dir: /app
+    # Usa shell directamente (sin entrypoint propio)
     command: >
-      npm ci || true &&
-      npm run test &&
-      npm run test:e2e &&
-      npx stryker run
+      /bin/sh -lc "
+        npm test &&
+        npm run test:e2e &&
+        npx stryker run
+      "
 
   payments-tests:
     build:
       context: https://github.com/llipiterdev/payments-ms.git#main
       dockerfile: Dockerfile
-      # target: builder
+      target: builder
     profiles: ["test"]
     networks: [backend]
-    entrypoint: ["/bin/sh","-lc"]
+    working_dir: /app
     command: >
-      npm ci || true &&
-      npm run test &&
-      npm run test:e2e &&
-      npx stryker run
+      /bin/sh -lc "
+        npm test &&
+        npm run test:e2e &&
+        npx stryker run
+      "
 
 networks:
   backend: {}
