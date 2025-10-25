@@ -1,0 +1,83 @@
+version: "3.9"
+
+name: orders-payments-stack
+
+services:
+  # --------- APPS ---------
+  orders-ms:
+    build:
+      context: https://github.com/llipiterdev/orders-ms.git#main
+      dockerfile: Dockerfile
+      # Si defines un stage de producción en tu Dockerfile, puedes usar:
+      # target: prod
+    container_name: orders-ms
+    environment:
+      # URL interna para llamar al MS de pagos
+      PAYMENTS_URL: http://payments-ms:3000
+      # agrega aquí otras variables necesarias (DB_URL, JWT_SECRET, etc.)
+    depends_on:
+      - payments-ms
+      # Si activas healthcheck en payments-ms, puedes usar:
+      # payments-ms:
+      #   condition: service_healthy
+    ports:
+      - "3000:3000"     # host:container
+    networks:
+      - backend
+
+  payments-ms:
+    build:
+      context: https://github.com/llipiterdev/payments-ms.git#main
+      dockerfile: Dockerfile
+      # target: prod
+    container_name: payments-ms
+    # healthcheck opcional (descomenta si tu imagen trae curl o wget)
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -fsS http://localhost:3000/health || wget -qO- http://localhost:3000/health"]
+    #   interval: 10s
+    #   timeout: 3s
+    #   retries: 10
+    ports:
+      - "3001:3000"     # expone en el puerto 3001 del host
+    networks:
+      - backend
+
+  # --------- TESTS (activar con --profile test) ---------
+  orders-tests:
+    build:
+      context: https://github.com/llipiterdev/orders-ms.git#main
+      dockerfile: Dockerfile
+      # Si agregas un stage "test" en tu Dockerfile, habilita:
+      # target: test
+    profiles: ["test"]
+    networks: [backend]
+    depends_on:
+      - payments-ms
+    environment:
+      PAYMENTS_URL: http://payments-ms:3000
+    # Ajusta los comandos según tus scripts de package.json
+    command: >
+      bash -lc "
+        npm ci || true &&
+        npm run test &&
+        npm run test:e2e &&
+        npx stryker run
+      "
+
+  payments-tests:
+    build:
+      context: https://github.com/llipiterdev/payments-ms.git#main
+      dockerfile: Dockerfile
+      # target: test
+    profiles: ["test"]
+    networks: [backend]
+    command: >
+      bash -lc "
+        npm ci || true &&
+        npm run test &&
+        npm run test:e2e &&
+        npx stryker run
+      "
+
+networks:
+  backend: {}

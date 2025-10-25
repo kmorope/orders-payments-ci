@@ -1,0 +1,76 @@
+version: 2.1
+
+executors:
+  docker-machine:
+    machine:
+      image: ubuntu-2204:current
+    environment:
+      DOCKER_BUILDKIT: "1"
+      COMPOSE_DOCKER_CLI_BUILD: "1"
+
+jobs:
+  test-with-compose:
+    executor: docker-machine
+    steps:
+      - checkout
+
+      - run:
+          name: Show Docker versions
+          command: |
+            docker version
+            docker compose version || true
+
+      - run:
+          name: Ensure Docker Compose v2 present (fallback install)
+          command: |
+            if ! docker compose version >/dev/null 2>&1; then
+              sudo mkdir -p /usr/libexec/docker/cli-plugins
+              sudo curl -L "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64" -o /tmp/docker-compose
+              sudo chmod +x /tmp/docker-compose
+              sudo mv /tmp/docker-compose /usr/libexec/docker/cli-plugins/docker-compose
+            fi
+            docker compose version
+
+      - run:
+          name: Build services (git contexts from docker-compose.yml)
+          command: |
+            export DOCKER_BUILDKIT=1
+            docker compose build
+
+      - run:
+          name: Start app services in background
+          command: |
+            docker compose up -d payments-ms orders-ms
+            # Espera simple; si añades healthchecks, puedes reemplazar por wait-on/condiciones
+            sleep 10
+            docker ps
+
+      - run:
+          name: Run tests profile (orders & payments)
+          command: |
+            set -o pipefail
+            mkdir -p artifacts
+            # Ejecuta contenedores de pruebas y finaliza con el código de salida de orders-tests
+            docker compose --profile test up --abort-on-container-exit --exit-code-from orders-tests | tee artifacts/compose-tests.log
+
+      - run:
+          name: Dump service logs
+          when: always
+          command: |
+            docker compose logs --no-color > artifacts/compose-services.log || true
+
+      - run:
+          name: Teardown
+          when: always
+          command: |
+            docker compose down -v --remove-orphans
+
+      - store_artifacts:
+          path: artifacts
+          destination: artifacts
+
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - test-with-compose
