@@ -38,6 +38,15 @@ jobs:
             docker compose build
 
       - run:
+          name: Tag and push Docker images to public registry
+          command: |
+            echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+            docker tag orders-payments-stack_orders-ms $DOCKER_USERNAME/orders-ms:latest
+            docker tag orders-payments-stack_payments-ms $DOCKER_USERNAME/payments-ms:latest
+            docker push $DOCKER_USERNAME/orders-ms:latest
+            docker push $DOCKER_USERNAME/payments-ms:latest
+
+      - run:
           name: Save Docker images as artifacts
           command: |
             mkdir -p artifacts
