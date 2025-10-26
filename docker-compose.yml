@@ -3,6 +3,7 @@ name: orders-payments-stack
 services:
   # --------- APPS ---------
   orders-ms:
+    image: orders-payments-stack_orders-ms
     build:
       context: https://github.com/llipiterdev/orders-ms.git#main
       dockerfile: Dockerfile
@@ -17,6 +18,7 @@ services:
       - backend
 
   payments-ms:
+    image: orders-payments-stack_payments-ms
     build:
       context: https://github.com/llipiterdev/payments-ms.git#main
       dockerfile: Dockerfile
