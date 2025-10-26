@@ -86,7 +86,10 @@ jobs:
           destination: artifacts
 
 workflows:
-  version: 2
   ci:
+    when:
+      or:
+        - equal: [ main, << pipeline.git.branch >> ]
+        - equal: [ webhook, << pipeline.trigger_source >> ]
     jobs:
       - test-with-compose
