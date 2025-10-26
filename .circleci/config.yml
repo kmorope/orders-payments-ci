@@ -38,6 +38,13 @@ jobs:
             docker compose build
 
       - run:
+          name: Save Docker images as artifacts
+          command: |
+            mkdir -p artifacts
+            docker save orders-ms -o artifacts/orders-ms.tar
+            docker save payments-ms -o artifacts/payments-ms.tar
+
+      - run:
           name: Start app services in background
           command: |
             docker compose up -d payments-ms orders-ms
