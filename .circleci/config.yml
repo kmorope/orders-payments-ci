@@ -41,8 +41,8 @@ jobs:
           name: Save Docker images as artifacts
           command: |
             mkdir -p artifacts
-            docker save orders-ms -o artifacts/orders-ms.tar
-            docker save payments-ms -o artifacts/payments-ms.tar
+            docker save orders-payments-stack_orders-ms -o artifacts/orders-ms.tar
+            docker save orders-payments-stack_payments-ms -o artifacts/payments-ms.tar
 
       - run:
           name: Start app services in background
